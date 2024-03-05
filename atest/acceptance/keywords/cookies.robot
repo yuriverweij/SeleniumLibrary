@@ -49,8 +49,10 @@ Add Cookie When Expiry Is Human Readable Data&Time
 Delete Cookie
     [Tags]    Known Issue Safari
     Delete Cookie    test
-    ${cookies} =    Get Cookies
-    Should Be Equal    ${cookies}    far_future=timemachine; another=value
+    ${cookies} =    Get Cookies  as_dict=True
+    ${expected}  Create Dictionary  far_future=timemachine  another=value
+    Dictionaries Should Be Equal    ${cookies}    ${expected}
+#    Should Be Equal    ${cookies}    far_future=timemachine; another=value
 
 Non-existent Cookie
     Run Keyword And Expect Error

@@ -12,7 +12,7 @@ jobs:
         python-version: [3.11]  # 3.12, pypy-3.9
         rf-version: [7.0]
         selenium-version: [4.16.0, 4.18.1]
-        browser: [firefox, chrome]
+        browser: ['firefox', 'chrome']
 
     steps:
     - uses: actions/checkout@v3
@@ -59,23 +59,23 @@ jobs:
 
     # Temporarily ignoring pypy execution
     - name: Run tests with headless Chrome
-      if: matrix.browser == chrome
+      if: matrix.browser == 'chrome'
       run: |
         xvfb-run --auto-servernum python atest/run.py --zip headlesschrome
 
     - name: Run tests with normal Chrome
-      if: matrix.browser == chrome
+      if: matrix.browser == 'chrome'
       run: |
         xvfb-run --auto-servernum python atest/run.py --zip chrome
 
     # Recognize for the moment this will NOT run as we aren't using Python 3.9
     - name: Run tests with headless Firefox
-      if: matrix.browser == firefox
+      if: matrix.browser == 'firefox'
       run: |
         xvfb-run --auto-servernum python atest/run.py --zip headlessfirefox
 
     - name: Run tests with normal Firefox
-      if: matrix.browser == firefox
+      if: matrix.browser == 'firefox'
       run: |
         xvfb-run --auto-servernum python atest/run.py --zip firefox
 
