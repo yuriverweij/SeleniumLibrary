@@ -27,22 +27,22 @@ jobs:
     - run: |
         echo Installed chromium version: ${{ steps.setup-chrome.outputs.chrome-version }}
         ${{ steps.setup-chrome.outputs.chrome-path }} --version
+    - name: Setup firefox
+      id: setup-firefox
+      uses: browser-actions/setup-firefox@v1
+      with:
+        firefox-version: latest
+    - run: |
+        echo Installed firefox versions: ${{ steps.setup-firefox.outputs.firefox-version }}
+        ${{ steps.setup-firefox.outputs.firefox-path }} --version
     - name: Start xvfb
       run: |
         export DISPLAY=:99.0
         Xvfb -ac :99 -screen 0 1280x1024x16 > /dev/null 2>&1 &
     - name: Install dependencies
-      if: matrix.python-version != 'pypy-3.7'
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements-dev.txt
-    - name: Install dependencies for pypy
-      if: matrix.python-version == 'pypy-3.9'
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install robotstatuschecker>=1.4
-        pip install requests robotframework-pabot
     - name: Install Seleninum v${{ matrix.selenium-version }}
       run: |
         pip install --upgrade selenium==${{ matrix.selenium-version }}
@@ -55,30 +55,22 @@ jobs:
         echo "$SELENIUM_MANAGER_EXE"
         echo "WEBDRIVERPATH=$($SELENIUM_MANAGER_EXE --browser chrome --debug | awk '/INFO[[:space:]]Driver path:/ {print $NF;exit}')" >> "$GITHUB_ENV"
         echo "$WEBDRIVERPATH"
-    - name: Generate stub file for ${{ matrix.python-version }}
-      if: matrix.python-version != 'pypy-3.9'
-      run: |
-        invoke gen-stub
 
     # Temporarily ignoring pypy execution
-    - name: Run tests with headless Chrome and with PyPy
-      if: matrix.python-version == 'pypy-3.9'
+    - name: Run tests with headless Chrome
       run: |
-        xvfb-run --auto-servernum python atest/run.py --nounit --zip headlesschrome
+        xvfb-run --auto-servernum python atest/run.py --zip headlesschrome
 
-    - name: Run tests with normal Chrome if CPython
-      if: matrix.python-version != 'pypy-3.9'
+    - name: Run tests with normal Chrome
       run: |
         xvfb-run --auto-servernum python atest/run.py --zip chrome
 
     # Recognize for the moment this will NOT run as we aren't using Python 3.9
-    - name: Run tests with headless Firefox with Python 3.9 and RF 4.1.3
-      if: matrix.python-version == '3.9' && matrix.rf-version == '4.1.3'
+    - name: Run tests with headless Firefox
       run: |
         xvfb-run --auto-servernum python atest/run.py --zip headlessfirefox
 
-    - name: Run tests with normal Firefox with Python 3.9 and RF != 4.1.3
-      if: matrix.python-version == '3.9' && matrix.rf-version != '4.1.3'
+    - name: Run tests with normal Firefox
       run: |
         xvfb-run --auto-servernum python atest/run.py --zip firefox
 
