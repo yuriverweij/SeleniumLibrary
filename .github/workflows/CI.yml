@@ -12,7 +12,16 @@ jobs:
         python-version: [3.8, 3.11]  # 3.12, pypy-3.9
         rf-version: [5.0.1, 6.1.1, 7.0]
         selenium-version: [4.14.0, 4.15.2, 4.16.0]  #4.17.0, 4.18.0
-        browser: [firefox, chrome, headlesschrome]  #edge
+        browser: [headlesschrome]#edge
+        include: 
+          - browser : firefox
+            selenium: 4.16.0
+            rf-version: 7.0
+            python-version: 3.11
+          - browser : chrome
+            selenium: 4.16.0
+            rf-version: 7.0
+            python-version: 3.11
 
     steps:
     - uses: actions/checkout@v4
