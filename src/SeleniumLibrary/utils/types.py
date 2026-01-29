@@ -15,10 +15,25 @@
 # limitations under the License.
 import os
 from datetime import timedelta
-from typing import Any
+from typing import Any, List, Union
 
 from robot.utils import timestr_to_secs
 from robot.utils import is_truthy, is_falsy  # noqa
+from selenium.webdriver.remote.webelement import WebElement
+
+
+# Type alias for element locators.
+# A locator can be:
+# - A string using locator syntax (e.g., "id:myElement", "css:div.class")
+# - A WebElement instance (pass-through)
+# - A list of locators for chaining (e.g., ["tag:div", "css:a.link"])
+#
+# This type is used throughout SeleniumLibrary for consistency and to ensure
+# Robot Framework 6.1+ type validation accepts all valid locator formats.
+Locator = Union[WebElement, str, List[Union[WebElement, str]]]
+
+# Optional locator variant for keywords where locator can be None
+OptionalLocator = Union[WebElement, str, List[Union[WebElement, str]], None]
 
 # Need only for unit tests and can be removed when Approval tests fixes:
 # https://github.com/approvals/ApprovalTests.Python/issues/41

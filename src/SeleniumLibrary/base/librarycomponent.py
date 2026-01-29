@@ -18,7 +18,7 @@ import os
 from datetime import timedelta
 from typing import Optional, Union
 
-from SeleniumLibrary.utils import is_noney
+from SeleniumLibrary.utils import is_noney, Locator
 from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn, RobotNotRunningError
 
@@ -45,7 +45,7 @@ class LibraryComponent(ContextAware):
 
     def assert_page_contains(
         self,
-        locator: str,
+        locator: Locator,
         tag: Optional[str] = None,
         message: Optional[str] = None,
         loglevel: str = "TRACE",
@@ -62,7 +62,7 @@ class LibraryComponent(ContextAware):
 
     def assert_page_not_contains(
         self,
-        locator: str,
+        locator: Locator,
         tag: Optional[str] = None,
         message: Optional[str] = None,
         loglevel: str = "TRACE",

@@ -32,6 +32,7 @@ from selenium.webdriver.remote.webelement import WebElement
 
 from SeleniumLibrary.base import LibraryComponent
 from SeleniumLibrary.errors import NoOpenBrowser, PluginError
+from SeleniumLibrary.utils import Locator
 from SeleniumLibrary.keywords import (
     AlertKeywords,
     BrowserManagementKeywords,
@@ -751,13 +752,13 @@ class SeleniumLibrary(DynamicCore):
         return self._drivers.current
 
     def find_element(
-        self, locator: str, parent: Optional[WebElement] = None
+        self, locator: Locator, parent: Optional[WebElement] = None
     ) -> WebElement:
         """Find element matching `locator`.
 
         :param locator: Locator to use when searching the element.
             See library documentation for the supported locator syntax.
-        :type locator: str or selenium.webdriver.remote.webelement.WebElement
+        :type locator: str, list, or selenium.webdriver.remote.webelement.WebElement
         :param parent: Optional parent `WebElememt` to search child elements
             from. By default, search starts from the root using `WebDriver`.
         :type parent: selenium.webdriver.remote.webelement.WebElement
@@ -768,17 +769,17 @@ class SeleniumLibrary(DynamicCore):
         return self._element_finder.find(locator, parent=parent)
 
     def find_elements(
-        self, locator: str, parent: WebElement = None
+        self, locator: Locator, parent: WebElement = None
     ) -> List[WebElement]:
         """Find all elements matching `locator`.
 
         :param locator: Locator to use when searching the element.
             See library documentation for the supported locator syntax.
-        :type locator: str or selenium.webdriver.remote.webelement.WebElement
+        :type locator: str, list, or selenium.webdriver.remote.webelement.WebElement
         :param parent: Optional parent `WebElememt` to search child elements
             from. By default, search starts from the root using `WebDriver`.
         :type parent: selenium.webdriver.remote.webelement.WebElement
-        :return: list of found `WebElement` or e,mpty if elements are not found.
+        :return: list of found `WebElement` or empty if elements are not found.
         :rtype: list[selenium.webdriver.remote.webelement.WebElement]
         """
         return self._element_finder.find(

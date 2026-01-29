@@ -24,7 +24,7 @@ from selenium.webdriver.common.by import By
 
 from SeleniumLibrary.base import ContextAware
 from SeleniumLibrary.errors import ElementNotFound
-from SeleniumLibrary.utils import escape_xpath_value, events, is_falsy
+from SeleniumLibrary.utils import escape_xpath_value, events, is_falsy, Locator
 
 from .customlocator import CustomLocator
 
@@ -78,7 +78,7 @@ class ElementFinder(ContextAware):
 
     def find(
         self,
-        locator: Union[str, list],
+        locator: Locator,
         tag=None,
         first_only=True,
         required=True,
@@ -92,7 +92,7 @@ class ElementFinder(ContextAware):
             )
         return self._find(locators[-1], tag, first_only, required, element)
 
-    def _split_locator(self, locator: Union[str, list]) -> list:
+    def _split_locator(self, locator: Locator) -> list:
         if isinstance(locator, list):
             return locator
         if not isinstance(locator, str):

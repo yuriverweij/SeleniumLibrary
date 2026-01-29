@@ -21,6 +21,8 @@ from .types import (
     is_falsy,
     is_noney,
     is_truthy,
+    Locator,
+    OptionalLocator,
     WINDOWS,
     _convert_timeout,
     _convert_delay,
