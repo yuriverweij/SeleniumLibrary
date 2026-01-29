@@ -1,103 +1,255 @@
 name: SeleniumLibrary CI
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+# Prevent multiple runs of the same workflow on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-
+  # ============================================================================
+  # Main Test Suite - Core Version Combinations
+  # ============================================================================
+  test-core:
+    name: Test Py${{ matrix.python-version }} | RF${{ matrix.rf-version }} | Sel${{ matrix.selenium-version }} | ${{ matrix.browser }}
     runs-on: ubuntu-latest
-    continue-on-error: true
+    
     strategy:
+      fail-fast: false  # Continue other jobs even if one fails
       matrix:
-        python-version: [3.9.23, 3.13.5, 3.14.0-rc.3]  # pypy-3.9
-        # python-version: [{earliest: 3.9}, {latest: 3.13.0}]  # pypy-3.9
-        rf-version: [6.1.1, 7.3.2]
-        selenium-version: [4.28.1, 4.29.0, 4.30.0, 4.31.0, 4.32.0, 4.33.0, 4.34.2]
-        browser: [chrome]  # firefox, chrome, headlesschrome, edge
+        include:
+          # Latest stable versions
+          - python-version: "3.13.5"
+            rf-version: "7.3.2"
+            selenium-version: "4.34.2"
+            browser: chrome
+            
+          # Minimum supported versions
+          - python-version: "3.9.23"
+            rf-version: "6.1.1"
+            selenium-version: "4.28.1"
+            browser: chrome
+            
+          # Latest Python RC with latest everything
+          - python-version: "3.14.0-rc.3"
+            rf-version: "7.3.2"
+            selenium-version: "4.34.2"
+            browser: chrome
+            
+          # Mid-range combinations for compatibility
+          - python-version: "3.13.5"
+            rf-version: "6.1.1"
+            selenium-version: "4.31.0"
+            browser: chrome
+            
+          - python-version: "3.9.23"
+            rf-version: "7.3.2"
+            selenium-version: "4.34.2"
+            browser: chrome
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }} with Robot Framework ${{ matrix.rf-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Setup Chrome
-      uses: browser-actions/setup-chrome@v1
-      with:
-        chrome-version: 138
-        install-dependencies: true
-        install-chromedriver: true
-      id: setup-chrome
-    - run: |
-        echo Installed chromium version: ${{ steps.setup-chrome.outputs.chrome-version }}
-        ${{ steps.setup-chrome.outputs.chrome-path }} --version
-    - name: Setup firefox
-      id: setup-firefox
-      uses: browser-actions/setup-firefox@v1
-      with:
-        firefox-version: latest
-    - run: |
-        echo Installed firefox versions: ${{ steps.setup-firefox.outputs.firefox-version }}
-        ${{ steps.setup-firefox.outputs.firefox-path }} --version
-    - name: Start xvfb
-      run: |
-        export DISPLAY=:99.0
-        Xvfb -ac :99 -screen 0 1280x1024x16 > /dev/null 2>&1 &
-    - name: Install dependencies
-      if: matrix.python-version != 'pypy-3.7'
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements-dev.txt
-    - name: Install dependencies for pypy
-      if: matrix.python-version == 'pypy-3.9'
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install robotstatuschecker>=1.4
-        pip install requests robotframework-pabot
-    - name: Install Seleninum v${{ matrix.selenium-version }}
-      run: |
-        pip install --upgrade selenium==${{ matrix.selenium-version }}
-    - name: Install RF ${{ matrix.rf-version }}
-      run: |
-        pip install -U --pre robotframework==${{ matrix.rf-version }}
-    - name: Install drivers via selenium-manager
-      run: |
-        SELENIUM_MANAGER_EXE=$(python -c 'from selenium.webdriver.common.selenium_manager import SeleniumManager; sm=SeleniumManager(); print(f"{str(sm._get_binary())}")')
-        echo "$SELENIUM_MANAGER_EXE"
-        echo "WEBDRIVERPATH=$($SELENIUM_MANAGER_EXE --browser chrome --debug | awk '/INFO[[:space:]]Driver path:/ {print $NF;exit}')" >> "$GITHUB_ENV"
-        echo "$WEBDRIVERPATH"
-    - name: Generate stub file for ${{ matrix.python-version }}
-      if: matrix.python-version != 'pypy-3.9'
-      run: |
-        invoke gen-stub
+      # ====== Checkout & Setup ======
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # Temporarily ignoring pypy execution
-    - name: Run tests with headless Chrome and with PyPy
-      if: startsWith( matrix.python-version, 'pypy') == true
-      run: |
-        xvfb-run --auto-servernum python atest/run.py --nounit --zip headlesschrome
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
 
-    # - name: Run tests with ${{ matrix.browser }} if CPython
-    #   if: startsWith( matrix.python-version, 'pypy') == false
-    #   run: |
-    #     xvfb-run --auto-servernum python atest/run.py --zip ${{ matrix.browser }}
+      # ====== Browser Setup ======
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: 138
+          install-dependencies: true
+          install-chromedriver: true
+        id: setup-chrome
 
-    - name: Run tests with latest python and latest robot framework
-      if: matrix.python-version == '3.13.0' && matrix.rf-version == '7.2.2'
-      run: |
-        xvfb-run --auto-servernum python atest/run.py --zip ${{ matrix.browser }}
+      - name: Verify Chrome installation
+        run: |
+          echo "Installed Chrome version: ${{ steps.setup-chrome.outputs.chrome-version }}"
+          ${{ steps.setup-chrome.outputs.chrome-path }} --version
 
-    # - name: Run tests with Selenium Grid
-    #   if: matrix.python-version == '3.11' && matrix.rf-version == '3.2.2' && matrix.python-version != 'pypy-3.9'
-    #   run: |
-    #     wget --no-verbose --output-document=./selenium-server-standalone.jar http://selenium-release.storage.googleapis.com/3.141/selenium-server-standalone-3.141.59.jar
-    #     sudo chmod u+x ./selenium-server-standalone.jar
-    #     xvfb-run --auto-servernum python atest/run.py --zip headlesschrome  --grid True
+      # ====== Dependency Installation ======
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+            ${{ runner.os }}-pip-
 
-    - uses: actions/upload-artifact@v4
-      if: failure()
-      with:
-        name: sl_$${{ matrix.python-version }}_$${{ matrix.rf-version }}_$${{ matrix.selenium-version }}_$${{ matrix.browser }}
-        path: atest/zip_results
-        overwrite: true
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Install Selenium v${{ matrix.selenium-version }}
+        run: |
+          pip install --upgrade selenium==${{ matrix.selenium-version }}
+
+      - name: Install Robot Framework ${{ matrix.rf-version }}
+        run: |
+          pip install -U --pre robotframework==${{ matrix.rf-version }}
+
+      # ====== WebDriver Setup ======
+      - name: Install drivers via selenium-manager
+        run: |
+          SELENIUM_MANAGER_EXE=$(python -c 'from selenium.webdriver.common.selenium_manager import SeleniumManager; sm=SeleniumManager(); print(f"{str(sm._get_binary())}")')
+          echo "Selenium Manager: $SELENIUM_MANAGER_EXE"
+          DRIVER_PATH=$($SELENIUM_MANAGER_EXE --browser chrome --debug | awk '/INFO[[:space:]]Driver path:/ {print $NF;exit}')
+          echo "WEBDRIVERPATH=$DRIVER_PATH" >> "$GITHUB_ENV"
+          echo "WebDriver installed at: $DRIVER_PATH"
+
+      # ====== Code Generation ======
+      - name: Generate stub file
+        run: |
+          invoke gen-stub
+
+      # ====== Test Execution ======
+      - name: Run tests with ${{ matrix.browser }}
+        run: |
+          xvfb-run --auto-servernum python atest/run.py --zip ${{ matrix.browser }}
+
+      # ====== Artifact Upload on Failure ======
+      - name: Upload test results on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results-py${{ matrix.python-version }}-rf${{ matrix.rf-version }}-sel${{ matrix.selenium-version }}-${{ matrix.browser }}
+          path: atest/zip_results
+          retention-days: 7
+          overwrite: true
+
+  # ============================================================================
+  # PyPy Testing (Separate Job)
+  # ============================================================================
+  test-pypy:
+    name: Test PyPy with latest versions
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        pypy-version: ["pypy-3.9"]
+        rf-version: ["7.3.2"]
+        selenium-version: ["4.34.2"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PyPy
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.pypy-version }}
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: 138
+          install-dependencies: true
+          install-chromedriver: true
+        id: setup-chrome
+
+      - name: Install dependencies for PyPy
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install robotstatuschecker>=1.4
+          pip install requests robotframework-pabot
+
+      - name: Install Selenium ${{ matrix.selenium-version }}
+        run: |
+          pip install --upgrade selenium==${{ matrix.selenium-version }}
+
+      - name: Install Robot Framework ${{ matrix.rf-version }}
+        run: |
+          pip install -U --pre robotframework==${{ matrix.rf-version }}
+
+      - name: Run tests with headless Chrome
+        run: |
+          xvfb-run --auto-servernum python atest/run.py --nounit --zip headlesschrome
+
+      - name: Upload test results on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results-pypy-rf${{ matrix.rf-version }}-sel${{ matrix.selenium-version }}
+          path: atest/zip_results
+          retention-days: 7
+          overwrite: true
+
+  # ============================================================================
+  # Extended Compatibility Testing (Optional - runs on schedule or manual)
+  # ============================================================================
+  test-compatibility-matrix:
+    name: Compat Py${{ matrix.python-version }} | RF${{ matrix.rf-version }} | Sel${{ matrix.selenium-version }}
+    runs-on: ubuntu-latest
+    
+    # Only run on schedule or manual trigger to save resources
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9.23", "3.13.5", "3.14.0-rc.3"]
+        rf-version: ["6.1.1", "7.3.2"]
+        selenium-version: ["4.28.1", "4.29.0", "4.30.0", "4.31.0", "4.32.0", "4.33.0", "4.34.2"]
+        browser: [chrome]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: 138
+          install-dependencies: true
+          install-chromedriver: true
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install --upgrade selenium==${{ matrix.selenium-version }}
+          pip install -U --pre robotframework==${{ matrix.rf-version }}
+
+      - name: Install drivers via selenium-manager
+        run: |
+          SELENIUM_MANAGER_EXE=$(python -c 'from selenium.webdriver.common.selenium_manager import SeleniumManager; sm=SeleniumManager(); print(f"{str(sm._get_binary())}")')
+          DRIVER_PATH=$($SELENIUM_MANAGER_EXE --browser chrome --debug | awk '/INFO[[:space:]]Driver path:/ {print $NF;exit}')
+          echo "WEBDRIVERPATH=$DRIVER_PATH" >> "$GITHUB_ENV"
+
+      - name: Generate stub file
+        run: |
+          invoke gen-stub
+
+      - name: Run tests
+        run: |
+          xvfb-run --auto-servernum python atest/run.py --zip ${{ matrix.browser }}
+
+      - name: Upload test results on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: compat-results-py${{ matrix.python-version }}-rf${{ matrix.rf-version }}-sel${{ matrix.selenium-version }}
+          path: atest/zip_results
+          retention-days: 3
+          overwrite: true
