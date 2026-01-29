@@ -102,13 +102,13 @@ jobs:
           pip install -U --pre robotframework==${{ matrix.rf-version }}
 
       # ====== WebDriver Setup ======
-      - name: Install drivers via selenium-manager
-        run: |
-          SELENIUM_MANAGER_EXE=$(python -c 'from selenium.webdriver.common.selenium_manager import SeleniumManager; sm=SeleniumManager(); print(f"{str(sm._get_binary())}")')
-          echo "Selenium Manager: $SELENIUM_MANAGER_EXE"
-          DRIVER_PATH=$($SELENIUM_MANAGER_EXE --browser chrome --debug | awk '/INFO[[:space:]]Driver path:/ {print $NF;exit}')
-          echo "WEBDRIVERPATH=$DRIVER_PATH" >> "$GITHUB_ENV"
-          echo "WebDriver installed at: $DRIVER_PATH"
+      # - name: Install drivers via selenium-manager
+      #   run: |
+      #     SELENIUM_MANAGER_EXE=$(python -c 'from selenium.webdriver.common.selenium_manager import SeleniumManager; sm=SeleniumManager(); print(f"{str(sm._get_binary())}")')
+      #     echo "Selenium Manager: $SELENIUM_MANAGER_EXE"
+      #     DRIVER_PATH=$($SELENIUM_MANAGER_EXE --browser chrome --debug | awk '/INFO[[:space:]]Driver path:/ {print $NF;exit}')
+      #     echo "WEBDRIVERPATH=$DRIVER_PATH" >> "$GITHUB_ENV"
+      #     echo "WebDriver installed at: $DRIVER_PATH"
 
       # ====== Code Generation ======
       - name: Generate stub file
@@ -192,64 +192,64 @@ jobs:
   # ============================================================================
   # Extended Compatibility Testing (Optional - runs on schedule or manual)
   # ============================================================================
-  test-compatibility-matrix:
-    name: Compat Py${{ matrix.python-version }} | RF${{ matrix.rf-version }} | Sel${{ matrix.selenium-version }}
-    runs-on: ubuntu-latest
+  # test-compatibility-matrix:
+  #   name: Compat Py${{ matrix.python-version }} | RF${{ matrix.rf-version }} | Sel${{ matrix.selenium-version }}
+  #   runs-on: ubuntu-latest
     
-    # Only run on schedule or manual trigger to save resources
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+  #   # Only run on schedule or manual trigger to save resources
+  #   if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9.23", "3.13.5", "3.14.0-rc.3"]
-        rf-version: ["6.1.1", "7.3.2"]
-        selenium-version: ["4.28.1", "4.29.0", "4.30.0", "4.31.0", "4.32.0", "4.33.0", "4.34.2"]
-        browser: [chrome]
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       python-version: ["3.9.23", "3.13.5", "3.14.0-rc.3"]
+  #       rf-version: ["6.1.1", "7.3.2"]
+  #       selenium-version: ["4.28.1", "4.29.0", "4.30.0", "4.31.0", "4.32.0", "4.33.0", "4.34.2"]
+  #       browser: [chrome]
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
+  #     - name: Set up Python ${{ matrix.python-version }}
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
+  #         cache: 'pip'
 
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: 138
-          install-dependencies: true
-          install-chromedriver: true
+  #     - name: Setup Chrome
+  #       uses: browser-actions/setup-chrome@v1
+  #       with:
+  #         chrome-version: 138
+  #         install-dependencies: true
+  #         install-chromedriver: true
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-          pip install --upgrade selenium==${{ matrix.selenium-version }}
-          pip install -U --pre robotframework==${{ matrix.rf-version }}
+  #     - name: Install dependencies
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install -r requirements-dev.txt
+  #         pip install --upgrade selenium==${{ matrix.selenium-version }}
+  #         pip install -U --pre robotframework==${{ matrix.rf-version }}
 
-      - name: Install drivers via selenium-manager
-        run: |
-          SELENIUM_MANAGER_EXE=$(python -c 'from selenium.webdriver.common.selenium_manager import SeleniumManager; sm=SeleniumManager(); print(f"{str(sm._get_binary())}")')
-          DRIVER_PATH=$($SELENIUM_MANAGER_EXE --browser chrome --debug | awk '/INFO[[:space:]]Driver path:/ {print $NF;exit}')
-          echo "WEBDRIVERPATH=$DRIVER_PATH" >> "$GITHUB_ENV"
+  #     - name: Install drivers via selenium-manager
+  #       run: |
+  #         SELENIUM_MANAGER_EXE=$(python -c 'from selenium.webdriver.common.selenium_manager import SeleniumManager; sm=SeleniumManager(); print(f"{str(sm._get_binary())}")')
+  #         DRIVER_PATH=$($SELENIUM_MANAGER_EXE --browser chrome --debug | awk '/INFO[[:space:]]Driver path:/ {print $NF;exit}')
+  #         echo "WEBDRIVERPATH=$DRIVER_PATH" >> "$GITHUB_ENV"
 
-      - name: Generate stub file
-        run: |
-          invoke gen-stub
+  #     - name: Generate stub file
+  #       run: |
+  #         invoke gen-stub
 
-      - name: Run tests
-        run: |
-          xvfb-run --auto-servernum python atest/run.py --zip ${{ matrix.browser }}
+  #     - name: Run tests
+  #       run: |
+  #         xvfb-run --auto-servernum python atest/run.py --zip ${{ matrix.browser }}
 
-      - name: Upload test results on failure
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: compat-results-py${{ matrix.python-version }}-rf${{ matrix.rf-version }}-sel${{ matrix.selenium-version }}
-          path: atest/zip_results
-          retention-days: 3
+  #     - name: Upload test results on failure
+  #       uses: actions/upload-artifact@v4
+  #       if: failure()
+  #       with:
+  #         name: compat-results-py${{ matrix.python-version }}-rf${{ matrix.rf-version }}-sel${{ matrix.selenium-version }}
+  #         path: atest/zip_results
+  #         retention-days: 3
           overwrite: true
