@@ -31,6 +31,7 @@ class PluginDocumentation(unittest.TestCase):
         sl = SeleniumLibrary(
             plugins=f"{self.plugin_1}, {self.plugin_3};arg1=Text1;arg2=Text2"
         )
+        print(sl.get_keyword_documentation("__intro__"))  # add this
         verify(sl.get_keyword_documentation("__intro__"), self.reporter)
 
     @unittest.skipIf(WINDOWS, reason="ApprovalTest do not support different line feeds")
