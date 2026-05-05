@@ -5,42 +5,48 @@ on:
 
 jobs:
   test_config:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.config.os }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         config:
-          - description: latest
+          - description: current
             python-version: "3.13"
             rf-version: "7.4.2"
             selenium-version: "4.43.0"
             browser: chrome
+            os: ubuntu-latest
           - description: previous
             python-version: "3.12"
             rf-version: "7.3.2"
             selenium-version: "4.38.0"
             browser: chrome
-          - description: older_rf_version
+            os: ubuntu-latest
+          - description: legacy_rf
             python-version: "3.11"
             rf-version: "6.1.1"
             selenium-version: "4.37.0"
             browser: chrome
-          - description: latest
+            os: ubuntu-latest
+          - description: current
             python-version: "3.13"
             rf-version: "7.4.2"
             selenium-version: "4.43.0"
             browser: firefox
+            os: ubuntu-latest
           - description: previous
             python-version: "3.12"
             rf-version: "7.3.2"
             selenium-version: "4.38.0"
             browser: firefox
-          - description: older_rf_version
-            python-version: "3.11"
-            rf-version: "6.1.1"
-            selenium-version: "4.37.0"
-            browser: firefox
+            os: ubuntu-latest
+          - description: current
+            python-version: "3.13"
+            rf-version: "7.4.2"
+            selenium-version: "4.43.0"
+            browser: chrome
+            os: windows-latest
 
     steps:
     - uses: actions/checkout@v6
@@ -75,9 +81,14 @@ jobs:
     - name: Install Robot Framework ${{ matrix.config.rf-version }}
       run: |
         pip install --upgrade robotframework==${{ matrix.config.rf-version }}
-    - name: Run tests
+    - name: Run tests (Linux)
+      if: runner.os == 'Linux'
       run: |
         xvfb-run --auto-servernum python atest/run.py --zip ${{ matrix.config.browser }}
+    - name: Run tests (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        python atest/run.py --zip ${{ matrix.config.browser }}
     - uses: actions/upload-artifact@v7
       if: failure()
       with:
