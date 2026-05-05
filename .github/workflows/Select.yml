@@ -1,119 +1,105 @@
 name: Selected Test Configuration Matrix
 
-on: [push, pull_request]
+on:
+  [push, pull_request]
 
 jobs:
   test_config:
     runs-on: ubuntu-latest
-    continue-on-error: true
+    timeout-minutes: 60
     strategy:
+      fail-fast: false
       matrix:
         config:
           - description: latest
-            python-version: 3.14.4
-            rf-version: 7.4.2
-            selenium-version:  4.43.0
+            python-version: "3.13"
+            rf-version: "7.4.2"
+            selenium-version: "4.43.0"
             browser: chrome
           - description: previous
-            python-version: 3.12.12
-            rf-version: 7.3.2
-            selenium-version: 4.38.0
+            python-version: "3.12"
+            rf-version: "7.3.2"
+            selenium-version: "4.38.0"
             browser: chrome
           - description: older_rf_version
-            python-version: 3.11.14
-            rf-version: 6.1.1
-            selenium-version: 4.37.0
+            python-version: "3.11"
+            rf-version: "6.1.1"
+            selenium-version: "4.37.0"
             browser: chrome
           - description: latest
-            python-version: 3.14.4
-            rf-version: 7.4.1
-            selenium-version: 4.39.0
+            python-version: "3.13"
+            rf-version: "7.4.2"
+            selenium-version: "4.43.0"
             browser: firefox
+          - description: previous
+            python-version: "3.12"
+            rf-version: "7.3.2"
+            selenium-version: "4.38.0"
+            browser: firefox
+          - description: older_rf_version
+            python-version: "3.11"
+            rf-version: "6.1.1"
+            selenium-version: "4.37.0"
+            browser: firefox
+
     steps:
     - uses: actions/checkout@v6
-    - name: Configuration Description
+    - name: Configuration description
       run: |
         echo "${{ matrix.config.description }} configuration"
-        echo "Testing with RF v${{ matrix.config.rf-version }}, Selenium v${{ matrix.config.selenium-version}}, Python v${{ matrix.config.python-version }} under ${{ matrix.config.browser }}"
+        echo "Testing with RF v${{ matrix.config.rf-version }}, Selenium v${{ matrix.config.selenium-version }}, Python v${{ matrix.config.python-version }} under ${{ matrix.config.browser }}"
     - name: Set up Python ${{ matrix.config.python-version }}
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.config.python-version }}
-    - name: Setup ${{ matrix.config.browser }} browser
+        cache: 'pip'
+    - name: Setup Chrome
+      if: matrix.config.browser == 'chrome'
       uses: browser-actions/setup-chrome@v2
       with:
-        chrome-version: latest
+        chrome-version: stable
         install-dependencies: true
-      id: setup-chrome
-    - run: |
-        echo Installed chromium version: ${{ steps.setup-chrome.outputs.chrome-version }}
-        ${{ steps.setup-chrome.outputs.chrome-path }} --version
-    - name: Setup firefox
-      id: setup-firefox
+        install-chromedriver: false   # let selenium manager handle this
+    - name: Setup Firefox
+      if: matrix.config.browser == 'firefox'
       uses: browser-actions/setup-firefox@v1
       with:
         firefox-version: latest
-    - run: |
-        echo Installed firefox versions: ${{ steps.setup-firefox.outputs.firefox-version }}
-        ${{ steps.setup-firefox.outputs.firefox-path }} --version
-    - name: Start xvfb
-      run: |
-        export DISPLAY=:99.0
-        Xvfb -ac :99 -screen 0 1280x1024x16 > /dev/null 2>&1 &
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements-dev.txt
-    - name: Install Seleninum v${{ matrix.config.selenium-version }}
+    - name: Install Selenium ${{ matrix.config.selenium-version }}
       run: |
         pip install --upgrade selenium==${{ matrix.config.selenium-version }}
-    - name: Install RF ${{ matrix.config.rf-version }}
+    - name: Install Robot Framework ${{ matrix.config.rf-version }}
       run: |
-        pip install -U --pre robotframework==${{ matrix.config.rf-version }}
-
-    - name: Run tests under specified config
+        pip install --upgrade robotframework==${{ matrix.config.rf-version }}
+    - name: Run tests
       run: |
         xvfb-run --auto-servernum python atest/run.py --zip ${{ matrix.config.browser }}
-
     - uses: actions/upload-artifact@v7
       if: failure()
       with:
         name: sl_${{ matrix.config.python-version }}_${{ matrix.config.rf-version }}_${{ matrix.config.selenium-version }}_${{ matrix.config.browser }}
         path: atest/zip_results
-        overwrite: true
-  ruff:
-    runs-on: ubuntu-latest
 
+  lint:
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: "3.14.4"
-
+        python-version: "3.13"
+        cache: 'pip'
     - name: Install dev dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements-dev.txt
-
     - name: Ruff format check
-      id: format
-      continue-on-error: true
       run: |
         python -m invoke formatter --check
-
     - name: Ruff lint
-      id: lint
-      continue-on-error: true
       run: |
         python -m invoke lint
-
-    - name: Fail if any Ruff step failed
-      if: always()
-      run: |
-        echo "format outcome: ${{ steps.format.outcome }}"
-        echo "lint outcome:   ${{ steps.lint.outcome }}"
-        if [ "${{ steps.format.outcome }}" != "success" ] || [ "${{ steps.lint.outcome }}" != "success" ]; then
-          exit 1
-        fi
