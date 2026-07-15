@@ -225,14 +225,7 @@ class BrowserManagementKeywords(LibraryComponent):
             self.info(f"Using existing browser from index {index}.")
             self.switch_browser(alias)
             if url:
-                if isinstance(url, Secret):
-                    previous_level = BuiltIn().set_log_level("NONE")
-                    try:
-                        self.go_to(url.value)
-                    finally:
-                        BuiltIn().set_log_level(previous_level)
-                else:
-                    self.go_to(url)
+                self._open_url(url, self.go_to)
             return index
         if desired_capabilities:
             self.warn(
@@ -293,14 +286,7 @@ class BrowserManagementKeywords(LibraryComponent):
         index = self.ctx.register_driver(driver, alias)
         if url:
             try:
-                if isinstance(url, Secret):
-                    previous_level = BuiltIn().set_log_level("NONE")
-                    try:
-                        driver.get(url.value)
-                    finally:
-                        BuiltIn().set_log_level(previous_level)
-                else:
-                    driver.get(url)
+                self._open_url(url, driver.get)
             except Exception:
                 self.debug(
                     f"Opened browser with session id {driver.session_id} but failed to open url '{url}'."
@@ -308,6 +294,24 @@ class BrowserManagementKeywords(LibraryComponent):
                 raise
         self.debug(f"Opened browser with session id {driver.session_id}.")
         return index
+
+    def _open_url(self, url, navigate):
+        """Navigate to ``url`` using ``navigate``, protecting Secret urls.
+
+        ``navigate`` is the callable that performs the navigation (for example
+        ``driver.get`` or `Go To`). When ``url`` is a ``Secret``, the Robot
+        Framework log level is set to NONE while the unwrapped value is passed
+        to ``navigate`` and restored afterwards, so the value stays out of both
+        Robot Framework output and Selenium's own logging.
+        """
+        if isinstance(url, Secret):
+            previous_level = BuiltIn().set_log_level("NONE")
+            try:
+                navigate(url.value)
+            finally:
+                BuiltIn().set_log_level(previous_level)
+        else:
+            navigate(url)
 
     @keyword
     def create_webdriver(

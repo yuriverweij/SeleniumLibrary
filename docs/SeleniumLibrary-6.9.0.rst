@@ -58,10 +58,6 @@ Most important enhancements
   note resolve the issue within gecko driver and Firefox.
 - Input Password does not accept Secret type (`#1966`_)
   We have added support for the Secret Type into this release.
-- Open Browser does not accept Secret type for the url (`#1993`_)
-  The "Open Browser" keyword now accepts a Secret value for its ``url`` argument,
-  so a sensitive url is used for navigation while the secret value stays out of
-  Robot Framework output and SeleniumLibrary logging.
 - Added "Get CSS Property Value" keyword to retrieve computed CSS values (`#1969`_)
 - Selenium manager fails to download firefox/edge with lower versions of selenium (`#1986`_)
 
@@ -133,10 +129,6 @@ Full list of fixes and enhancements
       - enhancement
       - high
       - Input Password does not accept Secret type
-    * - `#1993`_
-      - enhancement
-      - high
-      - Open Browser does not accept Secret type for the url
     * - `#1969`_
       - enhancement
       - high
@@ -186,14 +178,13 @@ Full list of fixes and enhancements
       - ---
       - Fixed doc formating issue within xpath examples
 
-Altogether 18 issues. View on the `issue tracker <https://github.com/robotframework/SeleniumLibrary/issues?q=milestone%3Av6.9.0>`__.
+Altogether 17 issues. View on the `issue tracker <https://github.com/robotframework/SeleniumLibrary/issues?q=milestone%3Av6.9.0>`__.
 
 .. _#1962: https://github.com/robotframework/SeleniumLibrary/issues/1962
 .. _#1973: https://github.com/robotframework/SeleniumLibrary/issues/1973
 .. _#1953: https://github.com/robotframework/SeleniumLibrary/issues/1953
 .. _#1955: https://github.com/robotframework/SeleniumLibrary/issues/1955
 .. _#1966: https://github.com/robotframework/SeleniumLibrary/issues/1966
-.. _#1993: https://github.com/robotframework/SeleniumLibrary/issues/1993
 .. _#1969: https://github.com/robotframework/SeleniumLibrary/issues/1969
 .. _#1974: https://github.com/robotframework/SeleniumLibrary/issues/1974
 .. _#1978: https://github.com/robotframework/SeleniumLibrary/issues/1978

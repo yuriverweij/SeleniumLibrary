@@ -79,6 +79,13 @@ TEST_LIBS_DIR = os.path.join(RESOURCES_DIR, "testlibs")
 HTTP_SERVER_FILE = os.path.join(RESOURCES_DIR, "testserver", "testserver.py")
 EVENT_FIRING_LISTENER = os.path.join(RESOURCES_DIR, "testlibs", "MyListener.py")
 
+# Unique token embedded in the Secret url used by open_browser_secret.robot.
+# It is injected through the environment (never written in the suite itself) so
+# that `verify_secret_url_not_leaked` can assert the real url never ends up in
+# the generated Robot Framework output.
+SECRET_URL_LEAK_ENV = "SELENIUMLIBRARY_SECRET_URL"
+SECRET_URL_LEAK_TOKEN = "SELENIUMLIBRARY_SECRET_URL_TOKEN_12345"
+
 ROBOT_OPTIONS = [
     "--doc",
     "SeleniumLibrary acceptance tests with {browser}",
@@ -115,7 +122,8 @@ def acceptance_tests(
         hub, node = start_grid()
     with http_server(interpreter, port):
         execute_tests(interpreter, browser, rf_options, grid, event_firing, port)
-    failures = process_output(browser)
+    failures = process_output(browser) or 0
+    failures += verify_secret_url_not_leaked()
     if failures:
         print(
             "\n{} critical test{} failed.".format(
@@ -247,7 +255,15 @@ def execute_tests(interpreter, browser, rf_options, grid, event_firing, port):
     command += options + [ACCEPTANCE_TEST_DIR]
     log_start(command)
     syslog = os.path.join(RESULTS_DIR, "syslog.txt")
-    subprocess.call(command, env=dict(os.environ, ROBOT_SYSLOG_FILE=syslog))
+    env = dict(os.environ, ROBOT_SYSLOG_FILE=syslog)
+    # Feed a Secret url carrying a unique token to open_browser_secret.robot so
+    # that leaking of the real url can be verified after execution. Keep any
+    # value the caller already set.
+    env.setdefault(
+        SECRET_URL_LEAK_ENV,
+        f"http://localhost:{port}/html/?token={SECRET_URL_LEAK_TOKEN}",
+    )
+    subprocess.call(command, env=env)
 
 
 def log_start(command_list, *hiddens):
@@ -270,6 +286,31 @@ def process_output(browser):
         rebot_cli(options + [output])
     except SystemExit as exit:
         return exit.code
+
+
+def verify_secret_url_not_leaked():
+    """Assert the Secret url token is absent from the generated output.
+
+    This is the security property behind Secret support for `Open Browser`: the
+    real url must reach Selenium for navigation but must never appear in Robot
+    Framework output. `robotstatuschecker` only verifies individual log messages,
+    so this whole-output check is done here after execution.
+    """
+    leaked = []
+    for name in ("output.xml", "log.html"):
+        path = os.path.join(RESULTS_DIR, name)
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as file:
+            if SECRET_URL_LEAK_TOKEN in file.read():
+                leaked.append(name)
+    if leaked:
+        print(
+            f"\nSecret url leak detected: '{SECRET_URL_LEAK_TOKEN}' found in "
+            f"{', '.join(leaked)}."
+        )
+        return 1
+    return 0
 
 
 def create_zip(browser=None):

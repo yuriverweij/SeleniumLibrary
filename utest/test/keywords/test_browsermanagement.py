@@ -310,3 +310,66 @@ def test_open_browser_with_secret_url_unwraps_value_and_suppresses_logging():
     # ... while Robot Framework logging is suppressed and then restored.
     verify(builtin).set_log_level("NONE")
     verify(builtin).set_log_level("INFO")
+
+
+def test_open_browser_existing_alias_with_secret_url_unwraps_value():
+    ctx = mock()
+    ctx._drivers = mock()
+    when(ctx._drivers).get_index("my_alias").thenReturn(3)
+    bm = BrowserManagementKeywords(ctx)
+    when(bm).switch_browser("my_alias").thenReturn(None)
+    when(bm).go_to(ANY).thenReturn(None)
+
+    builtin = mock()
+    when(builtin).set_log_level("NONE").thenReturn("INFO")
+    when(builtin).set_log_level("INFO").thenReturn("NONE")
+
+    secret_url = Secret("http://robotframework.org/secret")
+    with patch(
+        "SeleniumLibrary.keywords.browsermanagement.BuiltIn",
+        return_value=builtin,
+    ):
+        index = bm.open_browser(secret_url, "chrome", alias="my_alias")
+
+    # The existing browser is reused and navigated with the real url value ...
+    assert index == 3
+    verify(bm).go_to("http://robotframework.org/secret")
+    # ... while Robot Framework logging is suppressed and then restored.
+    verify(builtin).set_log_level("NONE")
+    verify(builtin).set_log_level("INFO")
+
+
+def test_open_browser_with_secret_url_restores_log_level_on_failure():
+    ctx = mock()
+    ctx._drivers = mock()
+    ctx.event_firing_webdriver = None
+    ctx.speed = 0.0
+    browser = mock()
+    executable_path = "chromedriver"
+    when(webdriver).Chrome(
+        options=None,
+        service=ANY,
+    ).thenReturn(browser)
+    when(browser).get("http://robotframework.org/secret").thenRaise(
+        RuntimeError("boom")
+    )
+    bm = BrowserManagementKeywords(ctx)
+    when(bm._webdriver_creator)._get_executable_path(ANY).thenReturn(executable_path)
+
+    builtin = mock()
+    when(builtin).set_log_level("NONE").thenReturn("INFO")
+    when(builtin).set_log_level("INFO").thenReturn("NONE")
+
+    secret_url = Secret("http://robotframework.org/secret")
+    with (
+        patch(
+            "SeleniumLibrary.keywords.browsermanagement.BuiltIn",
+            return_value=builtin,
+        ),
+        pytest.raises(RuntimeError),
+    ):
+        bm.open_browser(secret_url, "chrome")
+
+    # A failing navigation must still restore the original log level.
+    verify(builtin).set_log_level("NONE")
+    verify(builtin).set_log_level("INFO")
