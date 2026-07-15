@@ -19,6 +19,7 @@ import types
 from datetime import timedelta
 from typing import Any
 
+from robot.libraries.BuiltIn import BuiltIn
 from selenium import webdriver
 from selenium.webdriver import FirefoxProfile
 from selenium.webdriver.support.event_firing_webdriver import EventFiringWebDriver
@@ -31,6 +32,7 @@ from SeleniumLibrary.utils import (
     secs_to_timestr,
     timestr_to_secs,
 )
+from SeleniumLibrary.utils.types import Secret
 
 from .webdrivertools import WebDriverCreator
 
@@ -64,7 +66,7 @@ class BrowserManagementKeywords(LibraryComponent):
     @keyword
     def open_browser(
         self,
-        url: str | None = None,
+        url: str | Secret | None = None,
         browser: str = "firefox",
         alias: str | None = None,
         remote_url: bool | str = False,
@@ -104,6 +106,15 @@ class BrowserManagementKeywords(LibraryComponent):
         | `Open Browser` | http://example.com | Edge    | remote_url=http://127.0.0.1:4444/wd/hub |
         | `Open Browser` | about:blank        |         |                                         |
         | `Open Browser` | browser=Chrome     |         |                                         |
+
+        This keyword supports the Robot Framework 7.4
+        [https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html#secret-variables|Secret]
+        variable type for the ``url`` argument. When a ``Secret`` is passed as
+        ``url``, the URL value is masked in Robot Framework logs and Selenium's
+        internal logging is suppressed while the URL is passed to Selenium. When
+        a plain string is passed, Selenium's internal logs are not suppressed.
+        Secret support applies only to the ``url`` argument; the other arguments
+        of this keyword do not support the ``Secret`` type.
 
         Optional ``alias`` is an alias given for this browser instance and
         it can be used for switching between browsers. When same ``alias``
@@ -214,7 +225,14 @@ class BrowserManagementKeywords(LibraryComponent):
             self.info(f"Using existing browser from index {index}.")
             self.switch_browser(alias)
             if url:
-                self.go_to(url)
+                if isinstance(url, Secret):
+                    previous_level = BuiltIn().set_log_level("NONE")
+                    try:
+                        self.go_to(url.value)
+                    finally:
+                        BuiltIn().set_log_level(previous_level)
+                else:
+                    self.go_to(url)
             return index
         if desired_capabilities:
             self.warn(
@@ -275,7 +293,14 @@ class BrowserManagementKeywords(LibraryComponent):
         index = self.ctx.register_driver(driver, alias)
         if url:
             try:
-                driver.get(url)
+                if isinstance(url, Secret):
+                    previous_level = BuiltIn().set_log_level("NONE")
+                    try:
+                        driver.get(url.value)
+                    finally:
+                        BuiltIn().set_log_level(previous_level)
+                else:
+                    driver.get(url)
             except Exception:
                 self.debug(
                     f"Opened browser with session id {driver.session_id} but failed to open url '{url}'."

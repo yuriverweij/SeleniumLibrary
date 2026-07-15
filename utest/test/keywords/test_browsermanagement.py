@@ -1,9 +1,12 @@
+from unittest.mock import patch
+
 import pytest
 from mockito import ANY, mock, verify, verifyNoUnwantedInteractions, when
 from selenium import webdriver
 
 from SeleniumLibrary import SeleniumLibrary
 from SeleniumLibrary.keywords import BrowserManagementKeywords
+from SeleniumLibrary.utils.types import Secret
 
 
 def test_set_selenium_timeout_only_affects_open_browsers():
@@ -275,3 +278,35 @@ def test_create_webdriver_speed():
     when(bm._webdriver_creator)._get_executable_path(ANY).thenReturn(executable_path)
     bm.open_browser("http://robotframework.org/", "chrome")
     verify(browser, times=0).__call__("_speed")
+
+
+def test_open_browser_with_secret_url_unwraps_value_and_suppresses_logging():
+    ctx = mock()
+    ctx._drivers = mock()
+    ctx.event_firing_webdriver = None
+    ctx.speed = 0.0
+    browser = mock()
+    executable_path = "chromedriver"
+    when(webdriver).Chrome(
+        options=None,
+        service=ANY,
+    ).thenReturn(browser)
+    bm = BrowserManagementKeywords(ctx)
+    when(bm._webdriver_creator)._get_executable_path(ANY).thenReturn(executable_path)
+
+    builtin = mock()
+    when(builtin).set_log_level("NONE").thenReturn("INFO")
+    when(builtin).set_log_level("INFO").thenReturn("NONE")
+
+    secret_url = Secret("http://robotframework.org/secret")
+    with patch(
+        "SeleniumLibrary.keywords.browsermanagement.BuiltIn",
+        return_value=builtin,
+    ):
+        bm.open_browser(secret_url, "chrome")
+
+    # The real url value is passed to Selenium ...
+    verify(browser).get("http://robotframework.org/secret")
+    # ... while Robot Framework logging is suppressed and then restored.
+    verify(builtin).set_log_level("NONE")
+    verify(builtin).set_log_level("INFO")
